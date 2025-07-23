@@ -1,35 +1,33 @@
-import os
 import streamlit as st
+import os
 from sqlalchemy import create_engine
-from dotenv import load_dotenv
 
 def get_mysql_connection():
-    """Get MySQL connection either from Streamlit secrets (Cloud) or .env (Local)."""
-
-    # ✅ Check if running on Streamlit Cloud with secrets
-    has_secrets = hasattr(st, "secrets") and st.secrets and "mysql" in st.secrets
-
-    if has_secrets:
-        db_config = st.secrets["mysql"]
-        host = db_config.get("host")
-        port = db_config.get("port")
-        user = db_config.get("user")
-        password = db_config.get("password")
-        database = db_config.get("database")
-    else:
-        # ✅ Fallback to local .env
-        load_dotenv()
-        host = os.getenv("MYSQL_HOST", "localhost")
-        port = os.getenv("MYSQL_PORT", "3306")
-        user = os.getenv("MYSQL_USER", "root")
-        password = os.getenv("MYSQL_PASSWORD", "")
-        database = os.getenv("MYSQL_DATABASE", "customer_churn")
-
-    connection_url = f"mysql+pymysql://{user}:{password}@{host}:{port}/{database}"
+    """Create a MySQL connection for Streamlit Cloud or local .env"""
 
     try:
-        engine = create_engine(connection_url)
-        return engine.connect()
+        # ✅ 1. Try secrets on Streamlit Cloud
+        if "mysql" in st.secrets:
+            db_config = st.secrets["mysql"]
+        else:
+            # ✅ 2. Fallback for local .env
+            from dotenv import load_dotenv
+            load_dotenv()
+            db_config = {
+                "host": os.getenv("DB_HOST"),
+                "port": os.getenv("DB_PORT"),
+                "user": os.getenv("DB_USER"),
+                "password": os.getenv("DB_PASSWORD"),
+                "database": os.getenv("DB_NAME"),
+            }
+
+        # ✅ Build connection string
+        connection_url = (
+            f"mysql+pymysql://{db_config['user']}:{db_config['password']}"
+            f"@{db_config['host']}:{db_config['port']}/{db_config['database']}"
+        )
+        return create_engine(connection_url)
+
     except Exception as e:
         st.error(f"❌ Database connection failed: {e}")
         return None
