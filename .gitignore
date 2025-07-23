@@ -1,0 +1,64 @@
+# ----------------------------
+# Python cache & build files
+# ----------------------------
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyw
+*.so
+*.egg-info/
+.eggs/
+dist/
+build/
+*.log
+
+# ----------------------------
+# Virtual environments
+# ----------------------------
+.venv/
+venv/
+env/
+ENV/
+*.env
+.env.local
+.env.*.local
+
+# ----------------------------
+# OS-specific junk
+# ----------------------------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# ----------------------------
+# Streamlit specific
+# ----------------------------
+.streamlit/secrets.toml
+
+# ----------------------------
+# Data files (if large)
+# ----------------------------
+*.csv
+*.xlsx
+*.parquet
+*.zip
+
+# ----------------------------
+# Jupyter Notebook checkpoints
+# ----------------------------
+.ipynb_checkpoints/
+
+# ----------------------------
+# Temporary files
+# ----------------------------
+*.tmp
+*.swp
+*.bak
+
+# ----------------------------
+# Config & secrets
+# ----------------------------
+*.ini
+*.cfg
