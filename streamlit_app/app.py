@@ -21,12 +21,16 @@ This dashboard provides interactive insights into customer churn patterns.
 # --- DB Connection + Load ---
 with st.spinner("Loading data from database..."):
     try:
-        conn = get_mysql_connection()
-        customers = pd.read_sql("SELECT * FROM customers", conn)
-        services = pd.read_sql("SELECT * FROM services", conn)
-        billing = pd.read_sql("SELECT * FROM billing", conn)
-        churn = pd.read_sql("SELECT * FROM churn_outcomes", conn)
-        conn.close()
+        engine = get_mysql_connection()  # ✅ returns a SQLAlchemy engine
+
+        customers = pd.read_sql("SELECT * FROM customers", engine)
+        services = pd.read_sql("SELECT * FROM services", engine)
+        billing = pd.read_sql("SELECT * FROM billing", engine)
+        churn = pd.read_sql("SELECT * FROM churn_outcomes", engine)
+
+        # ✅ Correct cleanup for SQLAlchemy
+        engine.dispose()
+
     except Exception as e:
         st.error(f"❌ Database connection failed: {e}")
         st.stop()
@@ -110,63 +114,66 @@ with tab1:
 
 # ✅ Tab 2: Direct SQL queries
 with tab2:
-    conn = get_mysql_connection()
+    try:
+        engine = get_mysql_connection()
 
-    st.markdown("#### 🔍 Churn Rate by Internet Service")
-    q1 = """
-    SELECT 
-        internet_service,
-        COUNT(*) AS total_customers,
-        SUM(CASE WHEN churn_status = 'Yes' THEN 1 ELSE 0 END) AS churned_customers,
-        ROUND(100.0 * SUM(CASE WHEN churn_status = 'Yes' THEN 1 ELSE 0 END) / COUNT(*), 2) AS churn_rate
-    FROM services s
-    JOIN churn_outcomes c ON s.customer_id = c.customer_id
-    GROUP BY internet_service
-    ORDER BY churn_rate DESC;
-    """
-    df1 = pd.read_sql(q1, conn)
-    st.dataframe(df1)
-    if not df1.empty:
-        st.bar_chart(df1.set_index("internet_service")["churn_rate"])
+        st.markdown("#### 🔍 Churn Rate by Internet Service")
+        q1 = """
+        SELECT 
+            internet_service,
+            COUNT(*) AS total_customers,
+            SUM(CASE WHEN churn_status = 'Yes' THEN 1 ELSE 0 END) AS churned_customers,
+            ROUND(100.0 * SUM(CASE WHEN churn_status = 'Yes' THEN 1 ELSE 0 END) / COUNT(*), 2) AS churn_rate
+        FROM services s
+        JOIN churn_outcomes c ON s.customer_id = c.customer_id
+        GROUP BY internet_service
+        ORDER BY churn_rate DESC;
+        """
+        df1 = pd.read_sql(q1, engine)
+        st.dataframe(df1)
+        if not df1.empty:
+            st.bar_chart(df1.set_index("internet_service")["churn_rate"])
 
-    st.markdown("#### 🔍 Monthly Charges vs Churn Segment")
-    q2 = """
-    SELECT 
-        CASE 
-            WHEN monthly_charges < 30 THEN 'Low'
-            WHEN monthly_charges < 60 THEN 'Medium'
-            ELSE 'High'
-        END AS charge_segment,
-        AVG(tenure) AS avg_tenure,
-        AVG(CASE WHEN churn_status = 'Yes' THEN 1 ELSE 0 END) AS churn_probability
-    FROM billing b
-    JOIN customers c ON b.customer_id = c.customer_id
-    JOIN churn_outcomes ch ON c.customer_id = ch.customer_id
-    GROUP BY charge_segment;
-    """
-    df2 = pd.read_sql(q2, conn)
-    st.dataframe(df2)
-    if not df2.empty:
-        st.bar_chart(df2.set_index("charge_segment")["churn_probability"])
+        st.markdown("#### 🔍 Monthly Charges vs Churn Segment")
+        q2 = """
+        SELECT 
+            CASE 
+                WHEN monthly_charges < 30 THEN 'Low'
+                WHEN monthly_charges < 60 THEN 'Medium'
+                ELSE 'High'
+            END AS charge_segment,
+            AVG(tenure) AS avg_tenure,
+            AVG(CASE WHEN churn_status = 'Yes' THEN 1 ELSE 0 END) AS churn_probability
+        FROM billing b
+        JOIN customers c ON b.customer_id = c.customer_id
+        JOIN churn_outcomes ch ON c.customer_id = ch.customer_id
+        GROUP BY charge_segment;
+        """
+        df2 = pd.read_sql(q2, engine)
+        st.dataframe(df2)
+        if not df2.empty:
+            st.bar_chart(df2.set_index("charge_segment")["churn_probability"])
 
-    st.markdown("#### 🔍 Churn Rate by Payment Method")
-    q3 = """
-    SELECT 
-        payment_method,
-        COUNT(*) AS customers,
-        SUM(CASE WHEN churn_status = 'Yes' THEN 1 ELSE 0 END) AS churned,
-        ROUND(SUM(CASE WHEN churn_status = 'Yes' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 2) AS churn_rate
-    FROM billing b
-    JOIN churn_outcomes c ON b.customer_id = c.customer_id
-    GROUP BY payment_method
-    ORDER BY churn_rate DESC;
-    """
-    df3 = pd.read_sql(q3, conn)
-    st.dataframe(df3)
-    if not df3.empty:
-        st.bar_chart(df3.set_index("payment_method")["churn_rate"])
+        st.markdown("#### 🔍 Churn Rate by Payment Method")
+        q3 = """
+        SELECT 
+            payment_method,
+            COUNT(*) AS customers,
+            SUM(CASE WHEN churn_status = 'Yes' THEN 1 ELSE 0 END) AS churned,
+            ROUND(SUM(CASE WHEN churn_status = 'Yes' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 2) AS churn_rate
+        FROM billing b
+        JOIN churn_outcomes c ON b.customer_id = c.customer_id
+        GROUP BY payment_method
+        ORDER BY churn_rate DESC;
+        """
+        df3 = pd.read_sql(q3, engine)
+        st.dataframe(df3)
+        if not df3.empty:
+            st.bar_chart(df3.set_index("payment_method")["churn_rate"])
 
-    conn.close()
+        engine.dispose()
+    except Exception as e:
+        st.error(f"❌ SQL queries failed: {e}")
 
 # ✅ Tab 3: Raw Data Preview
 with tab3:
